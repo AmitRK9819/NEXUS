@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Policy Intelligence Platform",
+  title: "NEXUS",
   description:
     "Transparent, human-in-the-loop AI decision support platform for government policymakers.",
   keywords: [
@@ -38,7 +38,7 @@ export default function RootLayout({
               {children}
             </main>
             <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
-              <span>Policy Intelligence Platform</span>
+              <span>NEXUS</span>
               <span className="mx-2 text-slate-300">|</span>
               <span>Government of India — Digital Governance Initiative</span>
               <span className="mx-2 text-slate-300">|</span>

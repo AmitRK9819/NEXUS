@@ -53,14 +53,14 @@ export default function AppNav() {
         <Link
           href="/dashboard"
           className="flex items-center gap-2 rounded focus-visible:ring-2 focus-visible:ring-slate-900"
-          aria-label="Policy Intelligence Platform — go to dashboard"
+          aria-label="NEXUS — go to dashboard"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded bg-slate-900">
             <Shield className="h-4 w-4 text-white" aria-hidden="true" />
           </div>
           <div className="leading-tight">
             <p className="text-sm font-semibold tracking-tight text-slate-900">
-              Policy Intelligence Platform
+              NEXUS
             </p>
             <p className="text-xs text-slate-500">Government Decision Support</p>
           </div>

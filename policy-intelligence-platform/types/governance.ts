@@ -1,5 +1,5 @@
 // ============================================================
-// Policy Intelligence Platform — Governance Type Definitions
+// NEXUS — Governance Type Definitions
 // ============================================================
 
 export type RecommendationCategory =
