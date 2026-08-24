@@ -36,6 +36,11 @@ from faker import Faker
 from shapely.geometry import MultiPoint, Point, Polygon
 from geoalchemy2.shape import from_shape
 
+# Ensure safe console output across all platforms (including Windows cp1252)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # ---------------------------------------------------------------------------
 # Zone Definitions — Gauteng Province, South Africa
 # ---------------------------------------------------------------------------
