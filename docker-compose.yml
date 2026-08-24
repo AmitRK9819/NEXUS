@@ -1,16 +1,19 @@
-
 # ============================================================
-# NEXUS Platform — Unified Docker Compose
-# Run:  docker-compose up --build
-# Stop: docker-compose down
-# Reset DB: docker-compose down -v && docker-compose up --build
+# NEXUS — Unified Docker Compose Stack
+# ============================================================
+# Services:
+#   1. db        — PostgreSQL 15 + PostGIS 3.3
+#   2. backend   — Unified FastAPI Engine (Port 8000)
+#   3. frontend  — Unified Next.js Platform (Port 3000)
+#   4. seeder    — Database seed script (run on-demand)
 # ============================================================
 
 services:
-  # ── Tier 0: Shared PostGIS Database ──────────────────────────
+  # ── Tier 1: PostGIS Database ─────────────────────────────
   db:
-    image: postgis/postgis:15-3.4
+    image: postgis/postgis:15-3.3
     container_name: nexus_db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-nexus}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexus}
@@ -18,85 +21,72 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - nexus_pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexus} -d ${POSTGRES_DB:-nexusdb}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
+    networks:
+      - nexus-net
 
-  # ── Tier 2: Data Fusion & Analytics Backend (port 8000) ──────
+  # ── Tier 2: Unified Backend (FastAPI) ─────────────────────
   backend:
     build:
-      context: ./data-fusion-engine
+      context: ./backend
       dockerfile: Dockerfile
     container_name: nexus_backend
+    restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-nexus}@db:5432/${POSTGRES_DB:-nexusdb}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-nexus}@db:5432/${POSTGRES_DB:-nexusdb}
+      SYNC_DATABASE_URL: postgresql://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-nexus}@db:5432/${POSTGRES_DB:-nexusdb}
+      CONSENT_HASH_SALT: ${CONSENT_HASH_SALT:-nexus-secret-salt-2026}
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-    restart: unless-stopped
+    networks:
+      - nexus-net
 
-  # ── Tier 1: Last-Mile Listener (port 8001) ───────────────────
-  listener:
+  # ── Tier 3: Unified Frontend (Next.js) ───────────────────
+  frontend:
     build:
-      context: ./last-mile-listener
+      context: ./frontend
       dockerfile: Dockerfile
-    container_name: nexus_listener
-    environment:
-      - MEMBER_2_ENDPOINT=http://backend:8000/api/v1/requests/ingest
-    ports:
-      - "8001:8001"
-    depends_on:
-      - backend
+    container_name: nexus_frontend
     restart: unless-stopped
-
-  # ── Tier 3: Mapper Geospatial Dashboard (port 3001) ──────────
-  mapper:
-    build:
-      context: ./mapper
-      dockerfile: Dockerfile
-    container_name: nexus_mapper
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    ports:
-      - "3001:3000"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  # ── Tier 4: Policy Intelligence Dashboard (port 3000) ────────
-  policy-dashboard:
-    build:
-      context: ./policy-intelligence-platform
-      dockerfile: Dockerfile
-    container_name: nexus_policy
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_GEMINI_AVAILABLE: ${NEXT_PUBLIC_GEMINI_AVAILABLE:-false}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports:
       - "3000:3000"
     depends_on:
       - backend
-    restart: unless-stopped
+    networks:
+      - nexus-net
 
-  # ── Database Seeder (run once) ───────────────────────────────
+  # ── Database Seeder Profile ──────────────────────────────
   seeder:
     build:
-      context: .
-      dockerfile: Dockerfile.seeder
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: nexus_seeder
+    profiles:
+      - seed
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-nexus}@db:5432/${POSTGRES_DB:-nexusdb}
+      SYNC_DATABASE_URL: postgresql://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-nexus}@db:5432/${POSTGRES_DB:-nexusdb}
+    entrypoint: ["python", "-m", "backend.seed.seed_data"]
     depends_on:
       db:
         condition: service_healthy
-    profiles:
-      - seed
+    networks:
+      - nexus-net
 
 volumes:
-  nexus_pgdata:
+  pgdata:
+
+networks:
+  nexus-net:
+    driver: bridge
