@@ -3,6 +3,7 @@
 // NEXUS — Hotspot Detail Card (slide-in panel on cluster click)
 // ============================================================
 
+import { useState } from "react";
 import { useMapStore } from "@/store/mapStore";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { scoreToLevel } from "@/lib/scoring";
@@ -21,15 +22,21 @@ const FLAG: Record<string, string> = {
   "China": "🇨🇳", "South Africa": "🇿🇦",
 };
 
+const LEVEL_COLOR: Record<string, string> = {
+  critical: "text-red-400", high: "text-orange-400",
+  moderate: "text-yellow-400", low: "text-green-400",
+};
+
 export default function HotspotDetailCard() {
   const { complaints, selectedHotspotId, selectHotspot } = useMapStore();
+  const [forwarded, setForwarded] = useState(false);
   const point = complaints.find((p) => p.id === selectedHotspotId);
 
   if (!point) return null;
 
   const level = scoreToLevel(point.severity_score);
 
-  // Build pie chart data from complaints in the same region + category
+  // Build pie chart data from complaints in the same region
   const regionComplaints = complaints.filter((p) => p.region === point.region);
   const byCategory = Object.entries(
     regionComplaints.reduce<Record<string, number>>((acc, p) => {
@@ -37,11 +44,6 @@ export default function HotspotDetailCard() {
       return acc;
     }, {})
   ).map(([name, value]) => ({ name, value }));
-
-  const LEVEL_COLOR: Record<string, string> = {
-    critical: "text-red-400", high: "text-orange-400",
-    moderate: "text-yellow-400", low: "text-green-400",
-  };
 
   return (
     <div className="bg-gray-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-2xl">
@@ -120,18 +122,24 @@ export default function HotspotDetailCard() {
         </div>
       </div>
 
-      {/* Forward CTA → Member 4 */}
+      {/* Forward CTA → Member 4 (DC-05: toast instead of alert) */}
       <button
         id={`forward-hotspot-${point.id}`}
         aria-label={`Forward hotspot ${point.id} to policymaker dashboard`}
+        disabled={forwarded}
         onClick={() => {
           // Emit a custom event that Member 4's dashboard can listen for
           window.dispatchEvent(new CustomEvent("nexus:forward-hotspot", { detail: point }));
-          alert(`Hotspot ${point.id} forwarded to Policymaker Dashboard ✓`);
+          setForwarded(true);
+          setTimeout(() => setForwarded(false), 3000);
         }}
-        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg"
+        className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all shadow-lg ${
+          forwarded
+            ? "bg-green-500/20 text-green-300 border border-green-500/40 cursor-default"
+            : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500"
+        }`}
       >
-        → Forward to Policymaker Dashboard
+        {forwarded ? "✓ Forwarded to Policymaker Dashboard" : "→ Forward to Policymaker Dashboard"}
       </button>
 
       {/* Timestamp */}

@@ -37,7 +37,7 @@ export function ClusterLayer(points: ComplaintPoint[]) {
       }
     },
     updateTriggers: {
-      getFillColor: points.map((p) => p.severity_score),
+      getFillColor: [points.length, points[0]?.severity_score ?? 0],
     },
   });
 }

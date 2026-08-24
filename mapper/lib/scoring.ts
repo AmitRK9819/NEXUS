@@ -63,8 +63,8 @@ export function computeSeverityScore(
 export function buildScoringContext(points: ComplaintPoint[]): ScoringContext {
   if (points.length === 0) return { maxVolume: 1, maxDensity: 1 };
   return {
-    maxVolume: Math.max(...points.map((p) => p.complaint_volume)),
-    maxDensity: Math.max(...points.map((p) => p.population_density)),
+    maxVolume: points.reduce((max, p) => Math.max(max, p.complaint_volume), 0),
+    maxDensity: points.reduce((max, p) => Math.max(max, p.population_density), 0),
   };
 }
 

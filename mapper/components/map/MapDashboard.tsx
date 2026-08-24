@@ -3,10 +3,9 @@
 // NEXUS — Main Map Dashboard Orchestrator (Member 3: Mapper)
 // ============================================================
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import Map, { NavigationControl } from "react-map-gl/maplibre";
 import { DeckGL } from "@deck.gl/react";
-import "maplibre-gl/dist/maplibre-gl.css";
 
 import { useMapStore } from "@/store/mapStore";
 import { fetchComplaints, fetchInvestments } from "@/lib/api";
@@ -73,7 +72,7 @@ export default function MapDashboard() {
         initialViewState={INITIAL_VIEW}
         controller
         layers={layers as never[]}
-        style={{ position: "absolute", inset: 0 }}
+        style={{ position: "absolute", top: "0", left: "0", right: "0", bottom: "0" }}
       >
         <Map
           mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
