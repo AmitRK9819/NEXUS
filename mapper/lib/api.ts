@@ -6,7 +6,7 @@
 // time by Next.js. Set the env var BEFORE running `next build`.
 // ============================================================
 
-import type { ComplaintPoint, InvestmentZone, ApiResponse } from "./types";
+import type { ComplaintPoint, InvestmentZone, ComplaintCategory, BRICSCountry } from "./types";
 
 // ----------------------------------------------------------
 // Resolve API base URL at call-time so it picks up the
@@ -33,6 +33,15 @@ async function apiFetch<T>(baseUrl: string, path: string, timeoutMs = 8000): Pro
   } finally {
     clearTimeout(timer);
   }
+}
+
+function normalizeCategory(cat: string): ComplaintCategory {
+  const lower = (cat || "").toLowerCase();
+  if (lower.includes("water")) return "Water Supply";
+  if (lower.includes("road")) return "Roads";
+  if (lower.includes("sanitation") || lower.includes("waste")) return "Sanitation";
+  if (lower.includes("internet") || lower.includes("digital")) return "Digital Connectivity";
+  return "Energy";
 }
 
 // ----------------------------------------------------------
@@ -68,12 +77,17 @@ export async function fetchComplaints(): Promise<ComplaintPoint[]> {
 
     return geojson.features.map((f) => ({
       id: f.properties.id ?? crypto.randomUUID(),
-      longitude: f.geometry.coordinates[0],
-      latitude: f.geometry.coordinates[1],
-      category: f.properties.category,
-      severity: f.properties.sentiment < -0.3 ? "critical" : f.properties.sentiment < 0 ? "high" : "medium",
-      description: f.properties.raw_text ?? "",
+      lng: f.geometry.coordinates[0],
+      lat: f.geometry.coordinates[1],
+      category: normalizeCategory(f.properties.category),
+      severity_score: Math.max(0, Math.min(1, 1 - (f.properties.sentiment + 1) / 2)),
+      complaint_volume: 1,
+      infra_deficit: 70,
+      population_density: 8000,
       timestamp: new Date().toISOString(),
+      confidence_score: f.properties.confidence_score ?? 0.9,
+      region: "Gauteng",
+      country: "South Africa" as BRICSCountry,
     }));
   } catch {
     // Fallback to mock data on error
@@ -108,10 +122,20 @@ export async function fetchInvestments(): Promise<InvestmentZone[]> {
     return budgets.map((b) => ({
       id: b.id,
       name: b.project_name,
+      region: "Gauteng",
+      budget_usd: b.allocated_budget_usd,
       category: b.category,
-      budget: b.allocated_budget_usd,
-      status: b.status,
-      coordinates: [0, 0] as [number, number], // Position from region centroid
+      coordinates: [
+        [
+          [28.0, -26.2],
+          [28.1, -26.2],
+          [28.1, -26.3],
+          [28.0, -26.3],
+          [28.0, -26.2],
+        ],
+      ],
+      year: 2026,
+      country: "South Africa" as BRICSCountry,
     }));
   } catch {
     const { MOCK_INVESTMENTS } = await import("./mock-data");

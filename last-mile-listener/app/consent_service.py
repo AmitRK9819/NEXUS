@@ -30,7 +30,9 @@ from pydantic import BaseModel
 
 from app.schemas import Channel, ConsentRecord, ConsentStatus
 
-DB_PATH = Path(os.environ.get("CONSENT_DB_PATH", "consent_log.sqlite3"))
+import tempfile
+
+DB_PATH = Path(os.environ.get("CONSENT_DB_PATH", os.path.join(tempfile.gettempdir(), "consent_log.sqlite3")))
 CONSENT_TTL_DAYS = int(os.environ.get("CONSENT_TTL_DAYS", "180"))
 # In production, load this from a secrets manager, not a hardcoded default.
 HASH_SALT = os.environ.get("CONSENT_HASH_SALT", "change-me-in-production")

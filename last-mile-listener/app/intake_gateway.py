@@ -36,8 +36,16 @@ from app.schemas import Channel, RawIntakeMessage
 
 router = APIRouter(prefix="/intake", tags=["intake"])
 
-VOICE_STORAGE_DIR = os.environ.get("VOICE_STORAGE_DIR", "incoming_voice_notes")
-os.makedirs(VOICE_STORAGE_DIR, exist_ok=True)
+import tempfile
+
+VOICE_STORAGE_DIR = os.environ.get(
+    "VOICE_STORAGE_DIR",
+    os.path.join(tempfile.gettempdir(), "incoming_voice_notes")
+)
+try:
+    os.makedirs(VOICE_STORAGE_DIR, exist_ok=True)
+except Exception:
+    pass
 
 CONSENT_PROMPT_TEMPLATE = (
     "Namaste! We'd like to use your message to help plan local infrastructure "

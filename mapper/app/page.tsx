@@ -1,3 +1,5 @@
+"use client";
+
 import dynamic from "next/dynamic";
 
 // AR-05: Dynamically import MapDashboard with ssr: false to prevent
