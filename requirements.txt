@@ -1,0 +1,17 @@
+# NEXUS Platform — Core Dependencies
+# Database & ORM
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+sqlalchemy>=2.0.30
+geoalchemy2>=0.15.0
+psycopg2-binary>=2.9.9
+
+# Configuration
+python-dotenv>=1.0.0
+
+# Mock Data Generation
+faker>=28.0.0
+shapely>=2.0.4
+
+# Pydantic (FastAPI dependency, pin for consistency)
+pydantic>=2.7.0

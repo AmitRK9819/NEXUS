@@ -1,0 +1,275 @@
+import type {
+  Recommendation,
+  XAIEvidence,
+  ChartDataPoint,
+  DecisionRecord,
+} from "@/types/governance";
+
+// ─── Recommendations ────────────────────────────────────────
+
+export const mockRecommendations: Recommendation[] = [
+  {
+    id: "rec-001",
+    title: "Ward 12 ICU Capacity Expansion",
+    category: "Healthcare",
+    location: "District General Hospital, Sector 12, New Delhi",
+    priority: "CRITICAL",
+    confidence: 94,
+    estimatedCost: "₹4.2 Crore",
+    currentMetric: "ICU Occupancy: 92%",
+    predictedImpact: "Reduce mortality risk by 28% within 90 days",
+    status: "PENDING REVIEW",
+    timestamp: "2026-08-20T09:15:00Z",
+    summary:
+      "Current ICU infrastructure at Ward 12 is critically over-utilised at 92% occupancy, with admission requests exceeding available capacity by 18%. Expanding from 24 to 36 beds with accompanying ventilator units and staff augmentation is required to prevent a public health crisis.",
+    targetOutcome:
+      "Reduce ICU occupancy rate to ≤75%, accommodate projected 18% increase in patient demand, and reduce average patient wait time from 4.2 hours to <1 hour.",
+    urgencyDays: 14,
+  },
+  {
+    id: "rec-002",
+    title: "Sector 4 Arterial Road Resurfacing & Drainage Upgrade",
+    category: "Transport",
+    location: "Sector 4 Main Arterial Road, 14.2 km stretch, Gurugram",
+    priority: "HIGH",
+    confidence: 88,
+    estimatedCost: "₹12.7 Crore",
+    currentMetric: "Pavement Condition Index: 31/100",
+    predictedImpact: "Reduce accident frequency by 42%, improve transit time by 22%",
+    status: "UNDER REVIEW",
+    timestamp: "2026-08-19T14:30:00Z",
+    summary:
+      "The 14.2 km Sector 4 arterial corridor has a Pavement Condition Index (PCI) of 31 — classified as 'Very Poor'. Pothole density exceeds 18 per km and the drainage network shows 63% blockage rate, causing flooding during monsoon season.",
+    targetOutcome:
+      "Achieve PCI ≥75 (Good), reduce pothole incidents to <2 per km, eliminate monsoon flooding events, and decrease vehicle operating costs by 15%.",
+    urgencyDays: 45,
+  },
+  {
+    id: "rec-003",
+    title: "North Zone Potable Pipeline Desiltation & Replacement",
+    category: "Water Supply",
+    location: "North Zone Distribution Network, Wards 7–14, Faridabad",
+    priority: "CRITICAL",
+    confidence: 91,
+    estimatedCost: "₹8.9 Crore",
+    currentMetric: "Water Quality TDS: 680 ppm (Limit: 500 ppm)",
+    predictedImpact: "Restore safe drinking water for 2.4 lakh residents",
+    status: "PENDING REVIEW",
+    timestamp: "2026-08-18T11:00:00Z",
+    summary:
+      "Water quality testing across Wards 7–14 reveals Total Dissolved Solids (TDS) levels of 680 ppm, exceeding BIS standards by 36%. Leaching from 35-year-old galvanised iron pipelines is the confirmed source. Immediate desiltation and phased replacement with HDPE pipes is recommended.",
+    targetOutcome:
+      "Reduce TDS levels to ≤300 ppm, eliminate lead contamination risk, and provide uninterrupted 24×7 potable water supply to 2.4 lakh affected residents.",
+    urgencyDays: 21,
+  },
+  {
+    id: "rec-004",
+    title: "Rural Gram Panchayat High-Speed Optical Fiber Ring",
+    category: "Digital Infrastructure",
+    location: "18 Gram Panchayats, Sonipat District, Haryana",
+    priority: "MEDIUM",
+    confidence: 79,
+    estimatedCost: "₹6.3 Crore",
+    currentMetric: "Internet Penetration: 12% (State Avg: 58%)",
+    predictedImpact: "Enable digital services for 68,000 rural households",
+    status: "PENDING REVIEW",
+    timestamp: "2026-08-17T08:45:00Z",
+    summary:
+      "Internet penetration across 18 Gram Panchayats in Sonipat stands at 12% against a state average of 58%. Only 3 of 18 Panchayat Bhawans have functional broadband. Deployment of a 210 km optical fiber ring with community WiFi hotspots will enable access to e-governance, telemedicine, and digital education services.",
+    targetOutcome:
+      "Achieve 85% household internet penetration, connect all 18 Panchayat Bhawans with ≥1 Gbps fiber, and enable digital delivery of 24 government services.",
+    urgencyDays: 90,
+  },
+];
+
+// ─── XAI Evidence ───────────────────────────────────────────
+
+export const mockXAIEvidence: Record<string, XAIEvidence> = {
+  "rec-001": {
+    recommendationId: "rec-001",
+    keyMetrics: [
+      { label: "ICU Occupancy Rate", value: "92%", trend: "up", critical: true },
+      { label: "Patient Admission Demand Growth", value: "+18% YoY", trend: "up", critical: true },
+      { label: "Available ICU Beds", value: "24 beds", trend: "stable" },
+      { label: "Projected Demand (90 days)", value: "34–38 beds", trend: "up" },
+      { label: "Average Patient Wait Time", value: "4.2 hours", trend: "up", critical: true },
+      { label: "Staff-to-Patient Ratio", value: "1:4.8 (target: 1:3)", trend: "down" },
+    ],
+    influencingFactors: [
+      { rank: 1, variable: "ICU Occupancy Trend", weight: 92, description: "Sustained occupancy above 90% for 6 consecutive months indicates structural capacity shortfall, not seasonal anomaly." },
+      { rank: 2, variable: "Patient Admission Velocity", weight: 85, description: "18% year-over-year growth in ICU admissions, driven by aging population demographics and post-pandemic respiratory morbidity increase." },
+      { rank: 3, variable: "Mortality Risk Correlation", weight: 78, description: "WHO data correlates ICU occupancy >90% with a 28–34% increase in preventable in-hospital mortality due to resource contention." },
+      { rank: 4, variable: "Alternative Facility Capacity", weight: 61, description: "Nearest alternative ICU facility (St. Mary's) is operating at 87% capacity, eliminating practical diversion options." },
+      { rank: 5, variable: "Staff Augmentation Feasibility", weight: 54, description: "State medical staffing pool confirms availability of 12 trained ICU nursing staff within 60-day mobilization window." },
+    ],
+    impactSummary: "Expanding ICU capacity from 24 to 36 beds is projected to reduce in-hospital mortality by 28%, reduce average patient wait times from 4.2 hours to under 1 hour, and accommodate forecast demand growth of 18% over the next 12 months.",
+    confidenceRationale: "Confidence score of 94% reflects: 6-month continuous occupancy data (high consistency), validated admission velocity from 3 independent hospital record systems, and strong correlation alignment with WHO clinical standards. Minor uncertainty (6%) is attributed to post-monsoon seasonal admission variance not fully accounted for in baseline models.",
+    dataSources: [
+      "Ward 12 Hospital Utilization Records (Jan 2026 – Aug 2026)",
+      "National Health Mission Admission Logs",
+      "District Census 2025 — Demographic Projections",
+      "State Health Department ICU Infrastructure Audit Report, Q2 2026",
+      "WHO Global Health Observatory — ICU Occupancy Benchmarks",
+      "National Medical Commission Staffing Standards",
+    ],
+    limitations: [
+      "Historical data window limited to 6 months; long-term multi-year trends not fully captured.",
+      "Post-monsoon seasonal admission spikes (typically +12–15%) are modelled on 3-year averages and may deviate by ±8%.",
+      "Construction cost estimates (₹4.2 Crore) are based on Q1 2026 Schedule of Rates and subject to material price escalation.",
+      "Staff augmentation projections assume state-level recruitment pipeline availability, which carries operational uncertainty.",
+      "This recommendation requires validation by a licensed healthcare infrastructure engineer and the Chief Medical Officer before any procurement action.",
+    ],
+  },
+  "rec-002": {
+    recommendationId: "rec-002",
+    keyMetrics: [
+      { label: "Pavement Condition Index (PCI)", value: "31/100 (Very Poor)", trend: "down", critical: true },
+      { label: "Pothole Density", value: "18.4 per km", trend: "up", critical: true },
+      { label: "Drainage Blockage Rate", value: "63%", trend: "up" },
+      { label: "Annual Accident Frequency", value: "47 incidents", trend: "up" },
+      { label: "Daily Traffic Volume", value: "38,000 PCU/day", trend: "stable" },
+      { label: "Last Resurfacing Date", value: "2014 (12 years ago)", trend: "stable" },
+    ],
+    influencingFactors: [
+      { rank: 1, variable: "Pavement Structural Failure", weight: 89, description: "PCI of 31 indicates structural pavement layer failure beyond routine maintenance remedy. Full milling and overlay required." },
+      { rank: 2, variable: "Drainage System Dysfunction", weight: 82, description: "63% drainage blockage caused 4 major flood events in 2025 monsoon, each causing >24 hours of traffic disruption." },
+      { rank: 3, variable: "Accident Causation Analysis", weight: 74, description: "Traffic accident records confirm 68% of incidents on this corridor cite pothole/road surface as primary contributing factor." },
+      { rank: 4, variable: "Traffic Volume Criticality", weight: 67, description: "38,000 PCUs/day makes this a Tier-1 arterial road; degraded surface directly impacts district-wide mobility and commerce." },
+      { rank: 5, variable: "Vehicle Operating Cost", weight: 58, description: "Current road condition imposes estimated ₹2.8 lakh/day additional operating costs on freight and passenger vehicles." },
+    ],
+    impactSummary: "Resurfacing and drainage rehabilitation will reduce accident frequency by 42%, eliminate monsoon flooding events, and recover transit time efficiency by 22%, generating estimated ₹18.4 Crore in annual economic benefit through reduced vehicle operating costs and accident costs.",
+    confidenceRationale: "Confidence of 88% based on: GPS road-condition survey data across all 14.2 km, validated accident records from Traffic Police database, and CPWD drainage inspection reports. 12% uncertainty relates to sub-surface drainage condition variability that will require ground-truth investigation prior to tender.",
+    dataSources: [
+      "PWD Pavement Condition Survey — Sector 4 Corridor, June 2026",
+      "Gurugram Traffic Police Accident Records Database, 2023–2026",
+      "CPWD Drainage Infrastructure Inspection Report, April 2026",
+      "NRRDA Traffic Volume Count Data, 2025",
+      "MoRTH Schedule of Rates, 2025–26",
+    ],
+    limitations: [
+      "Sub-surface utility conflicts (water mains, telecom conduits) are not fully mapped and may increase project scope by 10–15%.",
+      "Cost estimates do not include traffic management and diversion costs during construction phase.",
+      "Monsoon season construction constraints (June–September) will impact project scheduling.",
+      "Independent structural engineering assessment required before DPR finalisation.",
+    ],
+  },
+  "rec-003": {
+    recommendationId: "rec-003",
+    keyMetrics: [
+      { label: "Water TDS Level", value: "680 ppm (Limit: 500)", trend: "up", critical: true },
+      { label: "Lead Contamination", value: "0.018 mg/L (BIS: 0.01)", trend: "up", critical: true },
+      { label: "Affected Population", value: "2.4 lakh residents", trend: "stable" },
+      { label: "Pipeline Age", value: "35 years (Design life: 25 yrs)", trend: "stable" },
+      { label: "Pipe Burst Incidents (2025)", value: "23 events", trend: "up" },
+      { label: "Non-Revenue Water Loss", value: "38% (target: <15%)", trend: "up" },
+    ],
+    influencingFactors: [
+      { rank: 1, variable: "Water Quality Standard Breach", weight: 96, description: "TDS and lead levels exceeding BIS 10500:2012 limits constitute a public health emergency under Section 32 of the Water (Prevention) Act." },
+      { rank: 2, variable: "Pipeline Structural Deterioration", weight: 88, description: "GI pipeline aged 35 years against 25-year design life; 78% of sampled sections show wall thickness <40% of specification." },
+      { rank: 3, variable: "Non-Revenue Water Loss", weight: 79, description: "38% NRW loss indicates systemic leakage — both a financial liability and a contamination ingress risk." },
+      { rank: 4, variable: "Burst Event Frequency", weight: 71, description: "23 pipe burst events in 2025 caused 142 total hours of supply disruption for affected wards." },
+      { rank: 5, variable: "Health Impact Evidence", weight: 66, description: "District health records show 18% higher gastrointestinal illness incidence in affected wards vs. city average." },
+    ],
+    impactSummary: "Pipeline desiltation and HDPE replacement will restore potable water quality to BIS standards for 2.4 lakh residents, eliminate lead contamination risk, reduce NRW from 38% to <12%, and eliminate recurring burst events.",
+    confidenceRationale: "91% confidence based on: laboratory water quality test results from 47 sample points, CCTV pipeline inspection data covering 68% of network, and validated health surveillance records. 9% uncertainty from 32% of pipeline network not yet CCTV-inspected, which may reveal additional replacement requirements.",
+    dataSources: [
+      "Haryana Urban Development Authority — Water Quality Test Reports, July 2026",
+      "Faridabad Municipal Corporation Pipeline Inventory & CCTV Inspection Data",
+      "District Health Surveillance Records — Gastrointestinal Illness Incidence, 2025",
+      "BIS 10500:2012 — Drinking Water Quality Standards",
+      "CPHEEO Manual on Water Supply and Treatment, 2023 Edition",
+    ],
+    limitations: [
+      "CCTV inspection covers 68% of network; remaining 32% may reveal additional scope not reflected in cost estimate.",
+      "Desiltation works require temporary supply interruption of 6–8 hours per ward, requiring public communication planning.",
+      "HDPE material costs are subject to petrochemical market volatility; estimate valid for 90 days from report date.",
+      "Groundwater contamination source investigation (if leaching from external sources) not within current project scope.",
+    ],
+  },
+  "rec-004": {
+    recommendationId: "rec-004",
+    keyMetrics: [
+      { label: "Internet Penetration", value: "12% (State avg: 58%)", trend: "down", critical: true },
+      { label: "Connected Panchayat Bhawans", value: "3 of 18", trend: "stable" },
+      { label: "e-Governance Access Rate", value: "8% of eligible population", trend: "stable" },
+      { label: "Telemedicine Utilisation", value: "Near-zero (no connectivity)", trend: "stable" },
+      { label: "Digital Divide Index", value: "4.8× state average", trend: "up" },
+      { label: "Projected Coverage (post-project)", value: "85% households", trend: "up" },
+    ],
+    influencingFactors: [
+      { rank: 1, variable: "Digital Exclusion Severity", weight: 84, description: "12% internet penetration against 58% state average represents the most severe digital divide cluster in the district." },
+      { rank: 2, variable: "e-Governance Delivery Gap", weight: 77, description: "Only 8% of eligible residents can access digital government services, forcing 92% to travel >25 km to nearest service centre." },
+      { rank: 3, variable: "Economic Development Impediment", weight: 69, description: "Absence of broadband is cited by 74% of micro-enterprises as primary barrier to market access and financial inclusion." },
+      { rank: 4, variable: "Optical Fiber Infrastructure Readiness", weight: 62, description: "BharatNet Phase III conduit already laid along 80% of proposed ring route, reducing civil work costs significantly." },
+      { rank: 5, variable: "State Government Policy Alignment", weight: 57, description: "Project aligns with Haryana Digital Mission 2030 targets and qualifies for 40% central funding under BharatNet operational guidelines." },
+    ],
+    impactSummary: "Deploying the 210 km optical fiber ring will achieve 85% household internet penetration, enable digital delivery of 24 government services, and support telemedicine access for 68,000 households — with an estimated NPV benefit of ₹28 Crore over 10 years.",
+    confidenceRationale: "Confidence of 79% reflects: robust census and penetration data (high quality), but moderate uncertainty in demand uptake rates (rural digital literacy) and BharatNet grant confirmation (79% confidence). Two key assumptions — grant funding and community adoption rate — carry material execution risk.",
+    dataSources: [
+      "Haryana State Census Digital Access Survey, 2025",
+      "BharatNet Phase III Infrastructure Completion Report, Sonipat District",
+      "Ministry of Electronics & IT — BharatNet Operational Guidelines, 2024",
+      "District e-Governance Utilisation Records, 2025–26",
+      "TRAI Broadband India Report, Q1 2026",
+    ],
+    limitations: [
+      "Confidence is moderate (79%) due to unconfirmed BharatNet central grant allocation — project cost may increase if grant is not approved.",
+      "Rural digital literacy levels may result in slower-than-projected adoption rates, delaying return on investment.",
+      "Last-mile connectivity to individual households requires additional private operator partnerships not fully scoped.",
+      "Terrain challenges in 3 of 18 Gram Panchayats may require alternate routing, increasing civil works cost by 8–12%.",
+    ],
+  },
+};
+
+// ─── Chart Data ─────────────────────────────────────────────
+
+export const mockChartData: Record<string, ChartDataPoint[]> = {
+  "rec-001": [
+    { month: "Mar", actual: 74, capacity: 100, projected: 74 },
+    { month: "Apr", actual: 79, capacity: 100, projected: 80 },
+    { month: "May", actual: 83, capacity: 100, projected: 84 },
+    { month: "Jun", actual: 87, capacity: 100, projected: 87 },
+    { month: "Jul", actual: 90, capacity: 100, projected: 91 },
+    { month: "Aug", actual: 92, capacity: 100, projected: 95 },
+  ],
+  "rec-002": [
+    { month: "Mar", actual: 52, capacity: 70, projected: 52 },
+    { month: "Apr", actual: 47, capacity: 70, projected: 48 },
+    { month: "May", actual: 42, capacity: 70, projected: 43 },
+    { month: "Jun", actual: 38, capacity: 70, projected: 38 },
+    { month: "Jul", actual: 34, capacity: 70, projected: 33 },
+    { month: "Aug", actual: 31, capacity: 70, projected: 28 },
+  ],
+  "rec-003": [
+    { month: "Mar", actual: 520, capacity: 500, projected: 530 },
+    { month: "Apr", actual: 558, capacity: 500, projected: 565 },
+    { month: "May", actual: 601, capacity: 500, projected: 608 },
+    { month: "Jun", actual: 630, capacity: 500, projected: 638 },
+    { month: "Jul", actual: 658, capacity: 500, projected: 665 },
+    { month: "Aug", actual: 680, capacity: 500, projected: 695 },
+  ],
+  "rec-004": [
+    { month: "Mar", actual: 8, capacity: 58, projected: 9 },
+    { month: "Apr", actual: 9, capacity: 58, projected: 10 },
+    { month: "May", actual: 10, capacity: 58, projected: 11 },
+    { month: "Jun", actual: 11, capacity: 58, projected: 12 },
+    { month: "Jul", actual: 11, capacity: 58, projected: 13 },
+    { month: "Aug", actual: 12, capacity: 58, projected: 14 },
+  ],
+};
+
+// ─── Initial Decision Records ────────────────────────────────
+
+export const mockDecisionRecords: DecisionRecord[] = [
+  {
+    id: "dec-001",
+    recommendationId: "rec-002",
+    recommendationTitle: "Sector 4 Arterial Road Resurfacing & Drainage Upgrade",
+    category: "Transport",
+    decision: "CHANGES REQUESTED",
+    reviewer: "Sarvesh",
+    timestamp: "2026-08-19T16:45:00Z",
+    notes: "Sub-surface utility mapping must be completed before DPR finalisation. Request updated cost estimate from PWD incorporating traffic management costs. Resubmit with confirmed contractor availability for post-monsoon construction window (October 2026).",
+    originalConfidence: 88,
+  },
+];
