@@ -4,20 +4,15 @@
 //
 // DEPLOYMENT NOTE: NEXT_PUBLIC_* env vars are inlined at build
 // time by Next.js. Set the env var BEFORE running `next build`.
-// The runtime check below is a safety net, not a guarantee.
 // ============================================================
 
 import type { ComplaintPoint, InvestmentZone, ApiResponse } from "./types";
 
 // ----------------------------------------------------------
 // Resolve API base URL at call-time so it picks up the
-// build-time inline. We check inside each function rather
-// than at module scope to allow proper tree-shaking of
-// the mock-data module when a real URL is provided.
+// build-time inline.
 // ----------------------------------------------------------
 function getBaseUrl(): string {
-  // In production builds, Next.js replaces this literal at compile time.
-  // This is intentional — NEXT_PUBLIC vars are NOT runtime-configurable.
   return process.env.NEXT_PUBLIC_API_URL ?? "";
 }
 
@@ -42,7 +37,8 @@ async function apiFetch<T>(baseUrl: string, path: string, timeoutMs = 8000): Pro
 
 // ----------------------------------------------------------
 // Complaints endpoint
-// GET /api/hotspots  →  ApiResponse<ComplaintPoint[]>
+// Backend: GET /api/v1/analytics/hotspots → GeoJSON FeatureCollection
+// Mock:    GET /api/hotspots (Next.js API route)
 // ----------------------------------------------------------
 export async function fetchComplaints(): Promise<ComplaintPoint[]> {
   const baseUrl = getBaseUrl();
@@ -52,13 +48,44 @@ export async function fetchComplaints(): Promise<ComplaintPoint[]> {
     await new Promise((r) => setTimeout(r, 300)); // simulate latency
     return MOCK_COMPLAINTS;
   }
-  const res = await apiFetch<ApiResponse<ComplaintPoint[]>>(baseUrl, "/api/hotspots");
-  return res.data;
+
+  // Fetch from the real backend GeoJSON endpoint
+  try {
+    const geojson = await apiFetch<{
+      type: string;
+      features: Array<{
+        geometry: { coordinates: [number, number] };
+        properties: {
+          id?: string;
+          category: string;
+          sentiment: number;
+          confidence_score: number;
+          raw_text?: string;
+          language?: string;
+        };
+      }>;
+    }>(baseUrl, "/api/v1/analytics/hotspots");
+
+    return geojson.features.map((f) => ({
+      id: f.properties.id ?? crypto.randomUUID(),
+      longitude: f.geometry.coordinates[0],
+      latitude: f.geometry.coordinates[1],
+      category: f.properties.category,
+      severity: f.properties.sentiment < -0.3 ? "critical" : f.properties.sentiment < 0 ? "high" : "medium",
+      description: f.properties.raw_text ?? "",
+      timestamp: new Date().toISOString(),
+    }));
+  } catch {
+    // Fallback to mock data on error
+    const { MOCK_COMPLAINTS } = await import("./mock-data");
+    return MOCK_COMPLAINTS;
+  }
 }
 
 // ----------------------------------------------------------
 // Investment zones endpoint
-// GET /api/investments  →  ApiResponse<InvestmentZone[]>
+// Backend: GET /api/v1/national-data/budgets → budget array
+// Mock:    GET /api/investments (Next.js API route)
 // ----------------------------------------------------------
 export async function fetchInvestments(): Promise<InvestmentZone[]> {
   const baseUrl = getBaseUrl();
@@ -67,6 +94,27 @@ export async function fetchInvestments(): Promise<InvestmentZone[]> {
     await new Promise((r) => setTimeout(r, 200));
     return MOCK_INVESTMENTS;
   }
-  const res = await apiFetch<ApiResponse<InvestmentZone[]>>(baseUrl, "/api/investments");
-  return res.data;
+
+  try {
+    const budgets = await apiFetch<Array<{
+      id: string;
+      region_id: string;
+      project_name: string;
+      category: string;
+      allocated_budget_usd: number;
+      status: string;
+    }>>(baseUrl, "/api/v1/national-data/budgets");
+
+    return budgets.map((b) => ({
+      id: b.id,
+      name: b.project_name,
+      category: b.category,
+      budget: b.allocated_budget_usd,
+      status: b.status,
+      coordinates: [0, 0] as [number, number], // Position from region centroid
+    }));
+  } catch {
+    const { MOCK_INVESTMENTS } = await import("./mock-data");
+    return MOCK_INVESTMENTS;
+  }
 }

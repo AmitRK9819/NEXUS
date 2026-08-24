@@ -1,38 +1,55 @@
+"""
+National data endpoints — Budget and infrastructure data
+
+  GET /api/v1/national-data/budgets         — all budget plans
+  GET /api/v1/national-data/infrastructure  — infrastructure scores per region
+"""
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List
 from app.api.deps import get_db
-from app.models.domain import PublicBudgetPlan, InfrastructureData
+from app.models.domain import PublicBudgetPlan, InfrastructureIndex, DemographicData
 
 router = APIRouter()
 
+
 @router.get("/national-data/budgets")
 async def get_national_budgets(db: AsyncSession = Depends(get_db)):
-    # RESTful Wrapper around legacy/mock tables
     stmt = select(PublicBudgetPlan)
     result = await db.execute(stmt)
     budgets = result.scalars().all()
-    
+
     return [
         {
-            "id": b.id,
-            "region_id": b.region_id,
-            "allocated_amount": b.allocated_amount
+            "id": str(b.project_id),
+            "region_id": str(b.region_id),
+            "project_name": b.project_name,
+            "category": b.category.value if hasattr(b.category, 'value') else str(b.category),
+            "allocated_budget_usd": float(b.allocated_budget_usd),
+            "start_date": str(b.start_date),
+            "status": b.status.value if hasattr(b.status, 'value') else str(b.status),
         } for b in budgets
     ]
 
+
 @router.get("/national-data/infrastructure")
 async def get_national_infrastructure(db: AsyncSession = Depends(get_db)):
-    # RESTful Wrapper around legacy/mock tables
-    stmt = select(InfrastructureData)
+    stmt = select(InfrastructureIndex, DemographicData).join(
+        DemographicData,
+        InfrastructureIndex.region_id == DemographicData.region_id,
+    )
     result = await db.execute(stmt)
-    infra = result.scalars().all()
-    
+    rows = result.all()
+
     return [
         {
-            "id": i.id,
-            "region_id": i.region_id,
-            "infrastructure_score": i.infrastructure_score
-        } for i in infra
+            "region_id": str(infra.region_id),
+            "region_name": demo.region_name,
+            "water_quality_score": infra.water_quality_score,
+            "road_condition_score": infra.road_condition_score,
+            "grid_reliability_score": infra.grid_reliability_score,
+            "digital_connectivity_score": infra.digital_connectivity_score,
+            "composite_score": round(infra.composite_score, 3),
+        } for infra, demo in rows
     ]

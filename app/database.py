@@ -21,7 +21,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://nexus_user:nexus_pass@localhost:5432/nexus_db",
+    "postgresql://nexus:nexus@localhost:5432/nexusdb",
 )
 
 # ---------------------------------------------------------------------------

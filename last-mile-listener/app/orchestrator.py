@@ -13,7 +13,7 @@ End-to-end pipeline orchestration.
   [NLP structuring]  (intent, location, sentiment/severity)
         |
         v
-  StructuredFeedback  --> handed off to Member 2 (triage/dashboard/routing)
+  StructuredFeedback  --> handed off to Tier 2 (Data Fusion / Ingestion)
 """
 
 from __future__ import annotations
@@ -27,16 +27,31 @@ import httpx
 
 from app.consent_service import is_processing_allowed
 from app.nlp_pipeline import structure_feedback
-from app.schemas import RawIntakeMessage, StructuredFeedback, TranscriptionMeta
+from app.schemas import RawIntakeMessage, StructuredFeedback, TranscriptionMeta, IntentCategory
 from app.stt_engine import get_default_engine
 
 logger = logging.getLogger("listener_layer.orchestrator")
 
-# Where Member 2's system receives finished, structured records.
-# Point this at their real ingestion endpoint.
-MEMBER_2_ENDPOINT = os.environ.get("MEMBER_2_ENDPOINT")
+# Where Tier 2 data-fusion-engine receives finished, structured records.
+MEMBER_2_ENDPOINT = os.environ.get("MEMBER_2_ENDPOINT", "http://backend:8000/api/v1/requests/ingest")
 
 _stt_engine = None
+
+CATEGORY_MAP = {
+    IntentCategory.WATER_SUPPLY.value: "Water",
+    IntentCategory.ROAD_REPAIR.value: "Roads",
+    IntentCategory.SANITATION_WASTE.value: "Sanitation",
+    IntentCategory.DIGITAL_CONNECTIVITY.value: "Internet",
+}
+
+# Known landmark coordinates for default geocoding fallback
+LOCATION_COORDS = {
+    "johannesburg": (28.0473, -26.2041),
+    "soweto": (27.8546, -26.2485),
+    "sandton": (28.0570, -26.1076),
+    "pretoria": (28.1881, -25.7479),
+    "mamelodi": (28.3975, -25.7200),
+}
 
 
 def _get_stt_engine():
@@ -97,16 +112,48 @@ def _run_stt_if_needed(message: RawIntakeMessage) -> Optional[TranscriptionMeta]
     )
 
 
+def _resolve_coordinates(feedback: StructuredFeedback) -> tuple[float, float, float]:
+    """Resolve (latitude, longitude, spatial_precision) from location entity."""
+    loc_text = " ".join(feedback.location.raw_mentions + [feedback.location.city or "", feedback.location.neighborhood or ""]).lower()
+    for name, (lon, lat) in LOCATION_COORDS.items():
+        if name in loc_text:
+            return lat, lon, 0.90
+    # Default coordinates (Johannesburg region) if not matched
+    return -26.2041, 28.0473, 0.60
+
+
 async def _handoff_to_member_2(feedback: StructuredFeedback) -> None:
     """
-    POSTs the finished JSON record to Member 2's ingestion endpoint.
-    If no endpoint is configured (e.g. local dev), just logs it —
-    this makes the module runnable standalone for testing.
+    Adapts StructuredFeedback to IngestComplaint schema and POSTs
+    to Tier 2 Data Fusion Engine ingestion endpoint.
     """
-    payload = json.loads(feedback.model_dump_json())
+    raw_text = (
+        feedback.transcription.native_text
+        or feedback.transcription.translated_text
+        or feedback.summary
+    )
+    translated_text = feedback.transcription.translated_text or feedback.summary
+    category = CATEGORY_MAP.get(feedback.intent_category, "Other")
+    lat, lon, spatial_precision = _resolve_coordinates(feedback)
+
+    payload = [
+        {
+            "raw_text": raw_text,
+            "translated_text": translated_text,
+            "category": category,
+            "latitude": lat,
+            "longitude": lon,
+            "sentiment": feedback.sentiment_score,
+            "language": feedback.transcription.detected_language or "en",
+            "nlp_certainty": feedback.intent_confidence,
+            "spatial_precision": spatial_precision,
+            "raw_audio_id": feedback.source_message_id,
+            "channel": feedback.channel,
+        }
+    ]
 
     if not MEMBER_2_ENDPOINT:
-        logger.info("MEMBER_2_ENDPOINT not set; structured feedback:\n%s",
+        logger.info("MEMBER_2_ENDPOINT not set; structured feedback payload:\n%s",
                      json.dumps(payload, indent=2))
         return
 
@@ -114,6 +161,8 @@ async def _handoff_to_member_2(feedback: StructuredFeedback) -> None:
         try:
             resp = await client.post(MEMBER_2_ENDPOINT, json=payload, timeout=10.0)
             resp.raise_for_status()
-        except httpx.HTTPError as e:
-            logger.error("Failed to hand off feedback %s to Member 2: %s",
+            logger.info("Successfully handed off feedback %s to Data Fusion Backend (status: %d)",
+                        feedback.feedback_id, resp.status_code)
+        except Exception as e:
+            logger.error("Failed to hand off feedback %s to Data Fusion Backend: %s",
                          feedback.feedback_id, e)

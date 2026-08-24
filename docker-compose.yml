@@ -1,0 +1,103 @@
+version: "3.8"
+
+# ============================================================
+# NEXUS Platform — Unified Docker Compose
+# Run:  docker-compose up --build
+# Stop: docker-compose down
+# Reset DB: docker-compose down -v && docker-compose up --build
+# ============================================================
+
+services:
+  # ── Tier 0: Shared PostGIS Database ──────────────────────────
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: nexus_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nexus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexus}
+      POSTGRES_DB: ${POSTGRES_DB:-nexusdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - nexus_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexus} -d ${POSTGRES_DB:-nexusdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Tier 2: Data Fusion & Analytics Backend (port 8000) ──────
+  backend:
+    build:
+      context: ./data-fusion-engine
+      dockerfile: Dockerfile
+    container_name: nexus_backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-nexus}@db:5432/${POSTGRES_DB:-nexusdb}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Tier 1: Last-Mile Listener (port 8001) ───────────────────
+  listener:
+    build:
+      context: ./last-mile-listener
+      dockerfile: Dockerfile
+    container_name: nexus_listener
+    environment:
+      - MEMBER_2_ENDPOINT=http://backend:8000/api/v1/requests/ingest
+    ports:
+      - "8001:8001"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Tier 3: Mapper Geospatial Dashboard (port 3001) ──────────
+  mapper:
+    build:
+      context: ./mapper
+      dockerfile: Dockerfile
+    container_name: nexus_mapper
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Tier 4: Policy Intelligence Dashboard (port 3000) ────────
+  policy-dashboard:
+    build:
+      context: ./policy-intelligence-platform
+      dockerfile: Dockerfile
+    container_name: nexus_policy
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Database Seeder (run once) ───────────────────────────────
+  seeder:
+    build:
+      context: .
+      dockerfile: Dockerfile.seeder
+    container_name: nexus_seeder
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-nexus}@db:5432/${POSTGRES_DB:-nexusdb}
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - seed
+
+volumes:
+  nexus_pgdata:
