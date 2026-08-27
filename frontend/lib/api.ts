@@ -49,7 +49,37 @@ const CATEGORY_MAP: Record<string, ComplaintCategory> = {
   "Digital Connectivity": "Digital Connectivity",
   Other: "Energy",
   Energy: "Energy",
+  Healthcare: "Water Supply",
+  Transport: "Roads",
 };
+
+const REGION_BOUNDARIES: Record<string, [number, number][][]> = {
+  johannesburg: [
+    [[28.02, -26.18], [28.07, -26.18], [28.07, -26.23], [28.02, -26.23], [28.02, -26.18]],
+  ],
+  soweto: [
+    [[27.82, -26.22], [27.89, -26.22], [27.89, -26.28], [27.82, -26.28], [27.82, -26.22]],
+  ],
+  sandton: [
+    [[28.03, -26.08], [28.08, -26.08], [28.08, -26.13], [28.03, -26.13], [28.03, -26.08]],
+  ],
+  pretoria: [
+    [[28.16, -25.72], [28.22, -25.72], [28.22, -25.78], [28.16, -25.78], [28.16, -25.72]],
+  ],
+  mamelodi: [
+    [[28.37, -25.69], [28.43, -25.69], [28.43, -25.74], [28.37, -25.74], [28.37, -25.69]],
+  ],
+};
+
+function getCoordinatesForProject(projectName: string, category: string): [number, number][][] {
+  const name = projectName.toLowerCase();
+  for (const [key, coords] of Object.entries(REGION_BOUNDARIES)) {
+    if (name.includes(key)) {
+      return coords;
+    }
+  }
+  return REGION_BOUNDARIES.johannesburg;
+}
 
 export async function fetchComplaints(): Promise<ComplaintPoint[]> {
   try {
@@ -110,15 +140,7 @@ export async function fetchInvestments(): Promise<InvestmentZone[]> {
       region: "Gauteng",
       budget_usd: b.allocated_budget_usd,
       category: b.category,
-      coordinates: [
-        [
-          [28.00, -26.15],
-          [28.10, -26.15],
-          [28.10, -26.25],
-          [28.00, -26.25],
-          [28.00, -26.15],
-        ],
-      ],
+      coordinates: getCoordinatesForProject(b.project_name, b.category),
       year: new Date(b.start_date).getFullYear() || 2026,
       country: "South Africa",
     }));

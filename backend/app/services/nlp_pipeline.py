@@ -6,10 +6,23 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Optional
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from backend.app.schemas.intake import IntentCategory, LocationEntity, SeverityLevel
 
-_analyzer = SentimentIntensityAnalyzer()
+try:
+    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+    _analyzer = SentimentIntensityAnalyzer()
+except ImportError:
+    class FallbackSentimentAnalyzer:
+        def polarity_scores(self, text: str):
+            lower = text.lower()
+            neg_words = ["danger", "accident", "hospital", "collapsed", "emergency", "fatal", "flood", "hazard", "burst", "broken", "leak", "dirty", "pothole"]
+            pos_words = ["good", "fixed", "clean", "working", "restored", "excellent", "repaired"]
+            neg = sum(1 for w in neg_words if w in lower)
+            pos = sum(1 for w in pos_words if w in lower)
+            compound = (pos - neg) / max(1, pos + neg) if (pos + neg) > 0 else 0.0
+            return {"compound": max(-1.0, min(1.0, compound))}
+    _analyzer = FallbackSentimentAnalyzer()
+
 _spacy_nlp = None
 
 
@@ -64,6 +77,9 @@ class StructuringResult:
 
 
 def classify_intent(text: str) -> tuple[IntentCategory, float]:
+    if not text or not text.strip():
+        return IntentCategory.OTHER_UNCLASSIFIED, 0.0
+
     lower = text.lower()
     matches: dict[IntentCategory, int] = {}
     for cat, kw_list in INTENT_KEYWORDS.items():
@@ -81,6 +97,9 @@ def classify_intent(text: str) -> tuple[IntentCategory, float]:
 
 
 def extract_location(text: str) -> LocationEntity:
+    if not text or not text.strip():
+        return LocationEntity(raw_mentions=[], landmark=None, confidence=0.0)
+
     nlp = _get_spacy()
     raw_mentions: list[str] = []
 
@@ -91,7 +110,7 @@ def extract_location(text: str) -> LocationEntity:
                 raw_mentions.append(ent.text)
 
     # Heuristic regex matches for common ward / sector patterns
-    sector_match = re.search(r"(sector|ward|block|phase|nagar|colony|gauteng|soweto|sandton|pretoria|johannesburg|mamelodi)\s*[\w\d]+", text, re.IGNORECASE)
+    sector_match = re.search(r"(sector|ward|block|phase|nagar|colony|gauteng|soweto|sandton|pretoria|johannesburg|mamelodi)\s*[\w\d]*", text, re.IGNORECASE)
     if sector_match and sector_match.group(0) not in raw_mentions:
         raw_mentions.append(sector_match.group(0))
 
@@ -104,6 +123,9 @@ def extract_location(text: str) -> LocationEntity:
 
 
 def compute_sentiment_and_severity(text: str) -> tuple[float, SeverityLevel, float]:
+    if not text or not text.strip():
+        return 0.0, SeverityLevel.LOW, 0.0
+
     scores = _analyzer.polarity_scores(text)
     sentiment = float(scores["compound"])
 
@@ -125,6 +147,9 @@ def compute_sentiment_and_severity(text: str) -> tuple[float, SeverityLevel, flo
 
 
 def generate_summary(text: str, cat: IntentCategory, loc: LocationEntity) -> str:
+    if not text or not text.strip():
+        return f"[{cat.value}] Empty submission"
+
     loc_part = f" near {loc.landmark}" if loc.landmark else ""
     first_sentence = text.split(".")[0].strip()
     if len(first_sentence) > 90:
@@ -133,10 +158,11 @@ def generate_summary(text: str, cat: IntentCategory, loc: LocationEntity) -> str
 
 
 def structure_feedback(text: str) -> StructuringResult:
-    intent_cat, intent_conf = classify_intent(text)
-    loc = extract_location(text)
-    sentiment, severity, urgency = compute_sentiment_and_severity(text)
-    summary = generate_summary(text, intent_cat, loc)
+    clean_text = (text or "").strip()
+    intent_cat, intent_conf = classify_intent(clean_text)
+    loc = extract_location(clean_text)
+    sentiment, severity, urgency = compute_sentiment_and_severity(clean_text)
+    summary = generate_summary(clean_text, intent_cat, loc)
 
     return StructuringResult(
         intent_category=intent_cat,

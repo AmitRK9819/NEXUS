@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useStore } from "@/lib/store";
+import { fetchMisalignmentReport } from "@/lib/api";
 import KPICard from "@/components/KPICard";
 import RecommendationCard from "@/components/RecommendationCard";
 import type { Recommendation, RecommendationPriority } from "@/types/governance";
@@ -21,6 +23,9 @@ import {
   Banknote,
   Timer,
   ChevronDown,
+  Activity,
+  MapPin,
+  TrendingUp,
 } from "lucide-react";
 
 type SortKey = "date" | "priority" | "cost" | "days";
@@ -42,6 +47,7 @@ export default function DashboardPage() {
   const { state } = useStore();
   const recs = state.recommendations;
 
+  const [liveRegions, setLiveRegions] = useState<any[]>([]);
   const [query, setQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
 
@@ -51,6 +57,14 @@ export default function DashboardPage() {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [sortOpen, setSortOpen] = useState(false);
+
+  useEffect(() => {
+    fetchMisalignmentReport().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setLiveRegions(data);
+      }
+    });
+  }, []);
 
   const SORT_OPTIONS: { key: SortKey; label: string; icon: React.ElementType; defaultDir: SortDir }[] = [
     { key: "date",     label: "Date",           icon: CalendarDays,  defaultDir: "desc" },
@@ -167,6 +181,50 @@ export default function DashboardPage() {
             <p className="mt-1 text-xs text-slate-600">Review AI-prioritized infrastructure interventions based on PostGIS deficit hotspots and budget misalignments.</p>
           </div>
         </div>
+
+        {/* Live Backend Analytics Hotspot Banner */}
+        {liveRegions.length > 0 && (
+          <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-cyan-600 animate-pulse" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Live PostGIS Deficit Hotspots & Misalignment Ranks
+                </h2>
+              </div>
+              <Link href="/map" className="text-xs font-semibold text-cyan-600 hover:text-cyan-700 flex items-center gap-1">
+                <MapPin className="h-3 w-3" /> View Spatial Map
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 text-xs">
+              {liveRegions.map((region) => (
+                <div
+                  key={region.region_id}
+                  className={`rounded-lg p-2.5 border ${
+                    region.is_critical_hotspot
+                      ? "bg-red-50/70 border-red-200 text-red-900"
+                      : region.is_overfunded
+                      ? "bg-purple-50/70 border-purple-200 text-purple-900"
+                      : "bg-slate-50 border-slate-200 text-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-bold">
+                    <span>{region.region_name}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                      region.is_critical_hotspot ? "bg-red-200 text-red-800" : "bg-slate-200 text-slate-700"
+                    }`}>
+                      IDS: {region.ids}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-600">
+                    <span>Misalignment:</span>
+                    <span className="font-semibold">{region.misalignment_index > 0 ? `+${region.misalignment_index}` : region.misalignment_index}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* KPI Cards */}
         <section aria-labelledby="kpi-section-heading" className="mb-8">

@@ -116,13 +116,17 @@ def process_consent_reply(citizen_ref: str, raw_reply: str) -> Optional[ConsentR
             WHERE consent_id = ?
         """, (new_status.value, now.isoformat(), raw_reply, row["consent_id"]))
 
+        asked_at_dt = datetime.fromisoformat(row["asked_at"])
+        if asked_at_dt.tzinfo is None:
+            asked_at_dt = asked_at_dt.replace(tzinfo=timezone.utc)
+
         return ConsentRecord(
             consent_id=row["consent_id"],
             citizen_ref=row["citizen_ref"],
             channel=Channel(row["channel"]),
             status=new_status,
             purpose_text=row["purpose_text"],
-            asked_at=datetime.fromisoformat(row["asked_at"]),
+            asked_at=asked_at_dt,
             responded_at=now,
             raw_reply_text=raw_reply,
         )
@@ -144,7 +148,12 @@ def is_processing_allowed(citizen_ref: str) -> bool:
         if not row["responded_at"]:
             return False
 
-        responded_at = datetime.fromisoformat(row["responded_at"])
-        if datetime.now(timezone.utc) - responded_at > timedelta(days=CONSENT_TTL_DAYS):
+        try:
+            responded_at = datetime.fromisoformat(row["responded_at"])
+            if responded_at.tzinfo is None:
+                responded_at = responded_at.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) - responded_at > timedelta(days=CONSENT_TTL_DAYS):
+                return False
+            return True
+        except Exception:
             return False
-        return True

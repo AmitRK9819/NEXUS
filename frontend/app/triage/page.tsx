@@ -25,6 +25,7 @@ export default function TriagePage() {
   const [items, setItems] = useState<OversightItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const loadQueue = useCallback(async () => {
@@ -46,11 +47,20 @@ export default function TriagePage() {
 
   async function handleAction(id: string, status: "APPROVED" | "REJECTED" | "FLAGGED") {
     setProcessingId(id);
+    setFeedbackMsg(null);
     try {
       await approveOversightItem(id, status);
       setItems((prev) => prev.filter((item) => item.id !== id));
+      setFeedbackMsg({
+        text: `Record ${id.slice(0, 8)}… marked as ${status} successfully.`,
+        type: "success",
+      });
+      setTimeout(() => setFeedbackMsg(null), 4000);
     } catch (e) {
-      alert(`Action failed: ${(e as Error).message}`);
+      setFeedbackMsg({
+        text: `Action failed: ${(e as Error).message}`,
+        type: "error",
+      });
     } finally {
       setProcessingId(null);
     }
@@ -83,6 +93,19 @@ export default function TriagePage() {
           Refresh Queue
         </button>
       </div>
+
+      {feedbackMsg && (
+        <div
+          className={`mb-4 rounded-xl p-3 text-xs font-medium border flex items-center justify-between ${
+            feedbackMsg.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-rose-50 text-rose-800 border-rose-200"
+          }`}
+        >
+          <span>{feedbackMsg.text}</span>
+          <button onClick={() => setFeedbackMsg(null)} className="text-xs font-bold px-2">✕</button>
+        </div>
+      )}
 
       {/* Overview Metric Banner */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -163,7 +186,7 @@ export default function TriagePage() {
                 <button
                   disabled={processingId === item.id}
                   onClick={() => handleAction(item.id, "APPROVED")}
-                  className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors"
+                  className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors disabled:opacity-50"
                 >
                   <CheckCircle className="h-3.5 w-3.5" />
                   Approve
@@ -171,7 +194,7 @@ export default function TriagePage() {
                 <button
                   disabled={processingId === item.id}
                   onClick={() => handleAction(item.id, "FLAGGED")}
-                  className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 shadow-sm transition-colors"
+                  className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 shadow-sm transition-colors disabled:opacity-50"
                 >
                   <Flag className="h-3.5 w-3.5" />
                   Flag for Inspection
@@ -179,7 +202,7 @@ export default function TriagePage() {
                 <button
                   disabled={processingId === item.id}
                   onClick={() => handleAction(item.id, "REJECTED")}
-                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                  className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
                 >
                   <XCircle className="h-3.5 w-3.5" />
                   Reject

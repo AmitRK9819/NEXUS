@@ -22,19 +22,31 @@ async def submit_direct_message(
     db: AsyncSession = Depends(get_async_db)
 ):
     """Interactive endpoint for submitting citizen grievance via text or voice URL."""
+    clean_text = (text_body or "").strip()
+    clean_media = (media_url or "").strip()
+
+    if not clean_text and not clean_media:
+        raise HTTPException(
+            status_code=400,
+            detail="Grievance submission requires either a text_body description or a media_url audio file."
+        )
+
     citizen_ref = hash_phone_number(phone_number)
 
     # Ensure consent is granted for web simulation
     if not is_processing_allowed(citizen_ref):
         from backend.app.services.consent_service import process_consent_reply
-        record_consent_request(citizen_ref, Channel(channel.lower()) if channel.lower() in [c.value for c in Channel] else Channel.WEB)
+        record_consent_request(
+            citizen_ref,
+            Channel(channel.lower()) if channel.lower() in [c.value for c in Channel] else Channel.WEB
+        )
         process_consent_reply(citizen_ref, "YES")
 
     msg = RawIntakeMessage(
         citizen_ref=citizen_ref,
         channel=Channel(channel.lower()) if channel.lower() in [c.value for c in Channel] else Channel.WEB,
-        text_body=text_body,
-        media_url=media_url,
+        text_body=clean_text if clean_text else None,
+        media_url=clean_media if clean_media else None,
     )
 
     feedback = await handle_new_message(msg, db=db)
@@ -54,20 +66,25 @@ async def twilio_webhook(
 
     if not is_processing_allowed(citizen_ref):
         from backend.app.services.consent_service import process_consent_reply
-        if Body and Body.strip().lower() in {"yes", "haan", "ha", "agree"}:
+        if Body and Body.strip().lower() in {"yes", "haan", "ha", "agree", "accept"}:
             process_consent_reply(citizen_ref, Body)
-            return {"status": "consent_recorded", "message": "Thank you! Please send your issue."}
+            return {"status": "consent_recorded", "message": "Thank you! Please send your civic grievance."}
         record_consent_request(citizen_ref, channel)
         return {
             "status": "consent_prompt_sent",
-            "message": "Please reply YES to allow civic planning use of your message."
+            "message": "Please reply YES to allow DPDP-compliant civic planning use of your message."
         }
+
+    clean_text = (Body or "").strip()
+    clean_media = (MediaUrl0 or "").strip()
+    if not clean_text and not clean_media:
+        return {"status": "ignored", "message": "Empty message received."}
 
     msg = RawIntakeMessage(
         citizen_ref=citizen_ref,
         channel=channel,
-        text_body=Body,
-        media_url=MediaUrl0,
+        text_body=clean_text if clean_text else None,
+        media_url=clean_media if clean_media else None,
     )
     feedback = await handle_new_message(msg, db=db)
     return {"status": "processed", "feedback_id": feedback.feedback_id}
